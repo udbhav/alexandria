@@ -47,6 +47,98 @@
     console.log(message.data.slice(16,32));
   };
 
+  function YamahaDX7() {
+    Machine.call(this); // call super constructor.
+  }
+  // subclass extends superclass
+  YamahaDX7.prototype = Object.create(Machine.prototype);
+  YamahaDX7.prototype.constructor = YamahaDX7;
+
+  YamahaDX7.prototype.pad = function(num, size) {
+    var s = num+"";
+    while (s.length < size) s = "0" + s;
+    return s;
+  };
+  YamahaDX7.prototype.getpartialByte = function(value, start, end) {
+    return this.pad((value).toString(2), 8).slice(start, end);
+  };
+
+  YamahaDX7.prototype.parseSysEx = function(message) {
+    // parse bank
+    var self = this, data = [],
+        presets = Array.apply(null, Array(32)).map(function (_, i) {return i;}),
+        operators = Array.apply(null, Array(6)).map(function (_, i) {return i;});
+
+    presets.forEach(function(i) {
+      var patch_data = message.data.slice(6+i*128,134+i*128);
+      var preset = {
+        operators: []
+      };
+
+      operators.forEach(function(ii) {
+        preset.operators.push({
+          operator: 6-ii,
+          r1: patch_data[0+ii*17], // env rate
+          r2: patch_data[1+ii*17],
+          r3: patch_data[2+ii*17],
+          r4: patch_data[3+ii*17],
+          l1: patch_data[4+ii*17], // env level
+          l2: patch_data[5+ii*17],
+          l3: patch_data[6+ii*17],
+          l4: patch_data[7+ii*17],
+          bp: patch_data[8+ii*17], // level scale breakpoint
+          ld: patch_data[9+ii*17], // left scale depth
+          rd: patch_data[10+ii*17], // right scale depth
+          rc: self.getpartialByte(patch_data[11+ii*17], 4, 6), // right curve
+          lc: self.getpartialByte(patch_data[11+ii*17], 6, 8), // left curve
+          det: self.getpartialByte(patch_data[12+ii*17], 1, 5), // detune
+          rs: self.getpartialByte(patch_data[12+ii*17], 5, 8), // rate scale
+          kvs: self.getpartialByte(patch_data[13+ii*17], 3, 6), // key vel sens
+          ams: self.getpartialByte(patch_data[13+ii*17], 6, 8), // amp mod sens
+          ol: patch_data[14+ii*17], // output level
+          fc: self.getpartialByte(patch_data[15+ii*17], 2, 7), // freq coarse
+          mode: self.getpartialByte(patch_data[15+ii*17], 7, 8), // freq coarse
+          ff: patch_data[16+ii*17], // freq fine
+        });
+      });
+      preset['pr1'] = patch_data[102]; // pitch eg rate
+      preset['pr2'] = patch_data[103];
+      preset['pr3'] = patch_data[104];
+      preset['pr4'] = patch_data[105];
+      preset['pl1'] = patch_data[106]; // pitch eg level
+      preset['pl2'] = patch_data[107];
+      preset['pl3'] = patch_data[108];
+      preset['pl4'] = patch_data[109];
+      preset['alg'] = patch_data[110]; // algorithm
+      preset['oks'] = self.getpartialByte(patch_data[111], 4, 5); // osc key sync
+      preset['fb'] = self.getpartialByte(patch_data[111], 5, 8); // feedback
+      preset['lfs'] = patch_data[112]; // lfo speed
+      preset['lfd'] = patch_data[113]; // lfo delay
+      preset['lpmd'] = patch_data[114]; // lf pt mod depth
+      preset['lamd'] = patch_data[115]; // lf at mod depth
+      preset['lpms'] = self.getpartialByte(patch_data[116], 1, 3); // lf pt mod sns
+      preset['lfw'] = self.getpartialByte(patch_data[116], 3, 7); // wave
+      preset['lks'] = self.getpartialByte(patch_data[116], 7, 8); // sync
+      preset['transpose'] = patch_data[117];
+
+      var iii = 118, name = "";
+      while (iii <= 127) {
+        name += String.fromCharCode(patch_data[iii]);
+        iii += 1;
+      }
+      preset['name'] = name;
+      console.log(preset);
+      data.push(preset);
+    });
+
+
+    console.log(data);
+    // if (message.data[6] == 82) this.parseKitSysEx(message);
+  };
+  YamahaDX7.prototype.parseKitSysEx = function(message) {
+    // console.log(message.data.slice(16,32));
+  };
+
   var Alexandria = React.createClass({
     getInitialState: function() {
       return {inputs: [], midi: false, listen: false};
@@ -119,6 +211,11 @@
        machine_name: 'elektron_md',
        sysex_header: [0, 32, 60, 2, 0],
        machine: ElektronMD
+      },
+      {name: 'Yamaha DX7',
+       machine_name: 'yamaha_dx7',
+       sysex_header: [67, 0, 9, 32, 0],
+       machine: YamahaDX7
       }
     ]
   });
