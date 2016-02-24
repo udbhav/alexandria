@@ -23,12 +23,14 @@ class WithMachine(models.Model):
     machine = models.CharField(max_length=40, choices=MACHINE_CHOICES)
     sysex_file = models.FileField(blank=True, null=True)
     data = JSONField(blank=True, null=True)
+    public = models.BooleanField(default=False)
 
     class Meta:
         abstract = True
 
 class Patch(BaseModel, WithMachine):
-    pass
+    class Meta:
+        verbose_name_plural = "patches"
 
 class PatchBank(BaseModel, WithMachine):
     patches = models.ManyToManyField(Patch, through='PatchPosition')

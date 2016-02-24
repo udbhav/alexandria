@@ -1,3 +1,6 @@
 from django.contrib import admin
 
-# Register your models here.
+from librarian.models import Patch, PatchBank
+
+admin.site.register(Patch)
+admin.site.register(PatchBank)
