@@ -60,7 +60,7 @@
     return s;
   };
   YamahaDX7.prototype.getpartialByte = function(value, start, end) {
-    return this.pad((value).toString(2), 8).slice(start, end);
+    return parseInt(this.pad((value).toString(2), 8).slice(start, end), 2);
   };
 
   YamahaDX7.prototype.parseSysEx = function(message) {
@@ -127,13 +127,10 @@
         iii += 1;
       }
       preset['name'] = name;
-      console.log(preset);
       data.push(preset);
     });
 
-
-    console.log(data);
-    // if (message.data[6] == 82) this.parseKitSysEx(message);
+    return data;
   };
   YamahaDX7.prototype.parseKitSysEx = function(message) {
     // console.log(message.data.slice(16,32));
@@ -141,10 +138,46 @@
 
   var Alexandria = React.createClass({
     getInitialState: function() {
-      return {inputs: [], midi: false, listen: false};
+      var patches = {};
+      this.machines.forEach(function(m) {
+        var data = localStorage.getItem(m.machine_name);
+        if (!data) {
+          data = [];
+        } else {
+          data = JSON.parse(data);
+        }
+        patches[m.machine_name] = data;
+      });
+      return {inputs: [], midi: false, listen: false, patches: patches};
     },
 
     render: function() {
+      var self = this;
+
+      // active machines
+      var active_machines = [];
+      for (var key in this.state.patches) {
+        if (this.state.patches.hasOwnProperty(key)) {
+          if (this.state.patches[key].length) {
+            var machine = this.machines.filter(function(m) {
+              return m.machine_name == key;
+            })[0];
+            active_machines.push({
+              machine: machine,
+              patches: this.state.patches[key]
+            });
+          };
+        }
+      };
+      var machines = active_machines.map(function(machine) {
+        return React.createElement(MachinePatchManager, {
+          key: machine.machine_name,
+          machine: machine.machine,
+          patches: machine.patches,
+          onPatchClick: self.onPatchClick
+        });
+      });
+
       return React.createElement(
         'div', {}
         , React.createElement(
@@ -154,6 +187,7 @@
           })
         , React.createElement(
           ReceiveToggle, {onClick: this.toggleMIDIListen})
+        , machines
       );
     },
 
@@ -164,6 +198,14 @@
           .then(this.onMIDISuccess, this.onMIDIFailure);
       } else {
         alert("No MIDI support in your browser.");
+      }
+    },
+
+    componentDidUpdate: function() {
+      for (var key in this.state.patches) {
+        if (this.state.patches.hasOwnProperty(key)) {
+          localStorage.setItem(key, JSON.stringify(this.state.patches[key]));
+        }
       }
     },
 
@@ -185,8 +227,9 @@
           return message.data.slice(1,m.sysex_header.length+1).equals(m.sysex_header);
         });
         if (selected_machine.length) {
-          selected_machine = new selected_machine[0].machine();
-          selected_machine.parseSysEx(message);
+          var machine = new selected_machine[0].machine();
+          var patches = machine.parseSysEx(message);
+          if (patches.length) this.addPatches(selected_machine[0], patches);
         }
       }
     },
@@ -206,6 +249,21 @@
       });
     },
 
+    addPatches: function(machine, new_patches) {
+      var patches = this.state.patches,
+          pk = patches[machine.machine_name].length;
+      new_patches.forEach(function(p) {
+        p.pk = pk;
+        patches[machine.machine_name].push(p);
+        ++pk;
+      });
+      this.setState({patches: patches});
+    },
+
+    onPatchClick: function(patch_pk, machine_name) {
+      console.log(patch_pk, machine_name);
+    },
+
     machines: [
       {name: 'Elektron Machinedrum',
        machine_name: 'elektron_md',
@@ -218,6 +276,47 @@
        machine: YamahaDX7
       }
     ]
+  });
+
+  var MachinePatchManager = React.createClass({
+    render: function() {
+      var self = this;
+      var patches = this.props.patches.map(function(p) {
+        return React.createElement(
+          Patch, {patch: p, onClick: self.onPatchClick});
+      });
+      return React.createElement(
+        'div', {'className': 'gutter-top machine-patches'}
+        , React.createElement('h3', {}, this.props.machine.name)
+        , React.createElement('div', {className: 'row'}, patches)
+      );
+    },
+
+    onPatchClick: function(patch_pk) {
+      this.props.onPatchClick(patch_pk, this.props.machine.machine_name);
+    }
+  });
+
+  var Patch = React.createClass({
+    getInitialState: function() {
+      return {selected: false};
+    },
+
+    render: function() {
+      var cls = 'patch';
+      if (this.state.selected) cls += ' active';
+
+      return React.createElement(
+        'div', {className: 'col-xs-6 col-sm-4 col-md-3 col-lg-2'}
+        , React.createElement(
+          'div', {className: cls, onClick: this.onClick},
+          this.props.patch.name)
+      );
+    },
+
+    onClick: function() {
+      this.props.onClick(this.props.patch.pk);
+    }
   });
 
   var MIDIDeviceSelector = React.createClass({

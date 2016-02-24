@@ -1,3 +1,29 @@
+$bg: cornsilk;
+$bg_2: white;
+$primary: #333;
+$border: 1px solid $primary;
+$gutter: 30px;
+
 body {
-  background: cornsilk;
+  background: $bg;
+}
+
+.gutter-top {
+  margin-top: $gutter;
+}
+
+.patch {
+  background: $bg_2;
+  padding: $gutter/2;
+  border: $border;
+  margin-bottom: $gutter/2;
+
+  &.active {
+    background: $primary;
+    color: $bg_2;
+  }
+}
+
+.machine-patches {
+  h3 { margin-bottom: $gutter; }
 }

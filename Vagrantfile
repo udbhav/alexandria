@@ -12,8 +12,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder ".", "/alexandria", type: "nfs"
   config.bindfs.bind_folder "/alexandria", "/home/vagrant/app"
 
-  config.omnibus.chef_version = :latest
-
   config.berkshelf.enabled = true
   config.vm.provision "chef_solo" do |chef|
     chef.add_recipe "mizra::default"

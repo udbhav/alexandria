@@ -1,4 +1,19 @@
 body {
   background: cornsilk; }
 
+.gutter-top {
+  margin-top: 30px; }
+
+.patch {
+  background: white;
+  padding: 15px;
+  border: 1px solid #333;
+  margin-bottom: 15px; }
+  .patch.active {
+    background: #333;
+    color: white; }
+
+.machine-patches h3 {
+  margin-bottom: 30px; }
+
 /*# sourceMappingURL=styles.css.map */

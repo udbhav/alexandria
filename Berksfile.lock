@@ -55,7 +55,7 @@ GRAPH
     compat_resource (>= 0.0.0)
   runit (1.7.6)
     packagecloud (>= 0.0.0)
-  seven_zip (1.0.4)
+  seven_zip (2.0.0)
     windows (>= 1.2.2)
   windows (1.39.1)
     chef_handler (>= 0.0.0)
