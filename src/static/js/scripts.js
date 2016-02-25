@@ -136,47 +136,13 @@
     // console.log(message.data.slice(16,32));
   };
 
-  var Alexandria = React.createClass({
+  var UploadSysEx = React.createClass({
     getInitialState: function() {
-      var patches = {};
-      this.machines.forEach(function(m) {
-        var data = localStorage.getItem(m.machine_name);
-        if (!data) {
-          data = [];
-        } else {
-          data = JSON.parse(data);
-        }
-        patches[m.machine_name] = data;
-      });
-      return {inputs: [], midi: false, listen: false, patches: patches};
+      return {inputs: [], midi: false, listen: false, patches: []};
     },
 
     render: function() {
       var self = this;
-
-      // active machines
-      var active_machines = [];
-      for (var key in this.state.patches) {
-        if (this.state.patches.hasOwnProperty(key)) {
-          if (this.state.patches[key].length) {
-            var machine = this.machines.filter(function(m) {
-              return m.machine_name == key;
-            })[0];
-            active_machines.push({
-              machine: machine,
-              patches: this.state.patches[key]
-            });
-          };
-        }
-      };
-      var machines = active_machines.map(function(machine) {
-        return React.createElement(MachinePatchManager, {
-          key: machine.machine_name,
-          machine: machine.machine,
-          patches: machine.patches,
-          onPatchClick: self.onPatchClick
-        });
-      });
 
       return React.createElement(
         'div', {}
@@ -187,7 +153,11 @@
           })
         , React.createElement(
           ReceiveToggle, {onClick: this.toggleMIDIListen})
-        , machines
+        , (this.state.patches.length != 0 && React.createElement(
+          MachinePatchManager, {
+            machine: this.state.machine,
+            patches: this.state.patches,
+          }))
       );
     },
 
@@ -198,14 +168,6 @@
           .then(this.onMIDISuccess, this.onMIDIFailure);
       } else {
         alert("No MIDI support in your browser.");
-      }
-    },
-
-    componentDidUpdate: function() {
-      for (var key in this.state.patches) {
-        if (this.state.patches.hasOwnProperty(key)) {
-          localStorage.setItem(key, JSON.stringify(this.state.patches[key]));
-        }
       }
     },
 
@@ -229,7 +191,9 @@
         if (selected_machine.length) {
           var machine = new selected_machine[0].machine();
           var patches = machine.parseSysEx(message);
-          if (patches.length) this.addPatches(selected_machine[0], patches);
+          if (patches.length) {
+            this.setState({machine: selected_machine[0], patches: patches});
+          }
         }
       }
     },
@@ -247,21 +211,6 @@
           v.onmidimessage = null;
         }
       });
-    },
-
-    addPatches: function(machine, new_patches) {
-      var patches = this.state.patches,
-          pk = patches[machine.machine_name].length;
-      new_patches.forEach(function(p) {
-        p.pk = pk;
-        patches[machine.machine_name].push(p);
-        ++pk;
-      });
-      this.setState({patches: patches});
-    },
-
-    onPatchClick: function(patch_pk, machine_name) {
-      console.log(patch_pk, machine_name);
     },
 
     machines: [
@@ -369,10 +318,7 @@
 
   $(document).ready(function() {
     ReactDOM.render(
-      React.createElement(Alexandria),
-      $(".container-alexandria")[0]);
-
-    // websocket test
-
+      React.createElement(UploadSysEx),
+      $(".upload-sysex")[0]);
   });
 })(jQuery);

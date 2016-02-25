@@ -4,12 +4,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from rest_framework import routers, serializers, viewsets
 
-# from librarian.views import AppView
-# from librarian import urls as librarian_urls
+from librarian.views import AppView
+from librarian import urls as librarian_urls
 from librarian.api import (
     PatchSerializer, PatchBankSerializer, PatchViewSet, PatchBankViewSet)
 from librarian.models import Patch, PatchBank
-
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     patches = serializers.SerializerMethodField()
@@ -48,11 +47,11 @@ urlpatterns = [
     url(r'^api/v1/', include(router.urls)),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 
-    # url(r'^$',
-    #     login_required(
-    #         AppView.as_view())
-    #     , {}, name='home'),
-    # url(r'^librarian/', include(librarian_urls)),
+    url(r'^$',
+        login_required(
+            AppView.as_view())
+        , {}, name='home'),
+    url(r'^librarian/', include(librarian_urls)),
 
     url(r'^admin/', include(admin.site.urls)),
 ]
