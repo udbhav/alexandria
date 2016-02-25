@@ -7,4 +7,6 @@ class AppView(TemplateView):
 
 class ImportSysExView(TemplateView):
     template_name = "librarian/import_sysex.html"
-    pass
+
+class UserPatchesView(TemplateView):
+    template_name = "librarian/user_patches.html"

@@ -22,7 +22,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             items = qs.filter(public=True)
 
         s = serializer_cls(instance=items, many=True, context=self.context)
-        return [x['url'] for x in s.data]
+        return [{'url': x['url'], 'name': x['name']} for x in s.data]
 
     def get_patches(self, user):
         return self.get_permissioned_items(user, 'patches', PatchSerializer)
@@ -32,7 +32,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = User
-        fields = ('url', 'username', 'patches', 'patch_banks')
+        fields = ('url', 'username', 'patches', 'patchbanks')
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()

@@ -1,5 +1,6 @@
 (function($) {
   "use strict";
+
   var equals = function (array) {
     // if the other array is a falsy value, return
     if (!array)
@@ -29,6 +30,20 @@
   // Hide method from for-in loops
   Object.defineProperty(Array.prototype, "equals", {enumerable: false});
   Object.defineProperty(Uint8Array.prototype, "equals", {enumerable: false});
+
+  // csrf for django
+  var csrftoken = Cookies.get('csrftoken');
+  function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+  }
+  $.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+      if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+        xhr.setRequestHeader("X-CSRFToken", csrftoken);
+      }
+    }
+  });
 
   function Machine() {
   };
@@ -272,7 +287,11 @@
           patches = old_state.patches.map(function(p) { return $.extend(p, {active: false}) });
         } else if (action == "remove_selected") {
           patches = old_state.patches.filter(function(p) { return !p.active; });
+        } else if (action == "save_selected") {
+          var patches_to_save = old_state.patches.filter(function(p) { return p.active; });
+          $.post("/api/v1/patches", {"name": "TESTING!"})
         }
+
         return {patches: patches};
       });
     },
@@ -338,6 +357,10 @@
             'button', {className: 'btn btn-danger',
                        "data-action": "remove_selected",
                        onClick: this.props.onToolbarClick}, "Remove Selected")
+          , React.createElement(
+            'button', {className: 'btn btn-primary',
+                       "data-action": "save_selected",
+                       onClick: this.props.onToolbarClick}, "Save Selected")
         )
         , React.createElement('div', {className: "gutter-top patches"}, patches)
       );
@@ -447,9 +470,34 @@
     }
   });
 
+  var UserPatches = React.createClass({
+    getInitialState: function() {
+      return {patches: []};
+    },
+
+    render: function() {
+      return false;
+    },
+
+    componentDidMount: function() {
+      $.getJSON("/api/v1/users/" + this.props.user_id, function(data) {
+        console.log(data);
+      });
+    }
+  });
+
   $(document).ready(function() {
-    ReactDOM.render(
-      React.createElement(ImportSysEx),
-      $(".import-sysex")[0]);
+
+    if ($(".import-sysex").length) {
+      ReactDOM.render(
+        React.createElement(ImportSysEx),
+        $(".import-sysex")[0]);
+    }
+
+    if ($(".user-patches").length) {
+      ReactDOM.render(
+        React.createElement(UserPatches, {user_id: $(".user-patches").attr("data-user-id")}),
+        $(".user-patches")[0]);
+    }
   });
 })(jQuery);

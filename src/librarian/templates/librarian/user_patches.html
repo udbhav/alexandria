@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header"><h1 class="gutter-bottom">My Patches</h1></div>
+<div class="user-patches" data-user-id="{{ request.user.id }}"></div>
+{% endblock %}
