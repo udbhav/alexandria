@@ -13,7 +13,7 @@ from librarian.models import Patch, PatchBank
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     patches = serializers.SerializerMethodField()
-    patch_banks = serializers.SerializerMethodField()
+    patchbanks = serializers.SerializerMethodField()
 
     def get_permissioned_items(self, user, attr, serializer_cls):
         qs = getattr(user, attr)
@@ -28,7 +28,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
     def get_patches(self, user):
         return self.get_permissioned_items(user, 'patches', PatchSerializer)
 
-    def get_patch_banks(self, user):
+    def get_patchbanks(self, user):
         return self.get_permissioned_items(user, 'patch_banks', PatchBankSerializer)
 
     class Meta:
