@@ -9,3 +9,6 @@ Requires [Vagrant](http://vagrantup.com).
     vagrant up
 
 Front end development requires [Grunt](http://gruntjs.com/).
+
+    npm install
+    grunt

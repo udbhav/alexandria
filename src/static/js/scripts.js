@@ -63,14 +63,14 @@
     return parseInt(this.pad((value).toString(2), 8).slice(start, end), 2);
   };
 
-  YamahaDX7.prototype.parseSysEx = function(message) {
+  YamahaDX7.prototype.parseSysEx = function(bytes) {
     // parse bank
     var self = this, data = [],
         presets = Array.apply(null, Array(32)).map(function (_, i) {return i;}),
         operators = Array.apply(null, Array(6)).map(function (_, i) {return i;});
 
     presets.forEach(function(i) {
-      var patch_data = message.data.slice(6+i*128,134+i*128);
+      var patch_data = bytes.slice(6+i*128,134+i*128);
       var preset = {
         operators: []
       };
@@ -136,7 +136,7 @@
     // console.log(message.data.slice(16,32));
   };
 
-  var UploadSysEx = React.createClass({
+  var ImportSysEx = React.createClass({
     getInitialState: function() {
       return {inputs: [], midi: false, listen: false, patches: []};
     },
@@ -147,12 +147,41 @@
       return React.createElement(
         'div', {}
         , React.createElement(
-          MIDIDeviceSelector, {
-            onChange: this.selectMIDIInput,
-            inputs: this.state.inputs
-          })
-        , React.createElement(
-          ReceiveToggle, {onClick: this.toggleMIDIListen})
+          'div', {className: 'row'}
+          , React.createElement(
+            'div', {className: 'col-sm-6'}
+            , React.createElement(
+              'div', {className: 'panel panel-default'}
+              , React.createElement(
+                'div', {className: 'panel-heading'}
+                , React.createElement('h3', {className: 'panel-title'}, 'Capture MIDI')
+              )
+              , React.createElement(
+                'div', {className: 'panel-body'}
+                , React.createElement(
+                  MIDIDeviceSelector, {
+                    onChange: this.selectMIDIInput,
+                    inputs: this.state.inputs})
+                , React.createElement(
+                  ReceiveToggle, {onClick: this.toggleMIDIListen})
+              )
+            )
+          )
+          , React.createElement(
+            'div', {className: 'col-sm-6'}
+            , React.createElement(
+              'div', {className: 'panel panel-default'}
+              , React.createElement(
+                'div', {className: 'panel-heading'}
+                , React.createElement('h3', {className: 'panel-title'}, 'Upload SysEx File')
+              )
+              , React.createElement(
+                'div', {className: 'panel-body'}
+                , React.createElement(SysExFileReader, {onFileLoad: this.onFileLoad})
+              )
+            )
+          )
+        )
         , (this.state.patches.length != 0 && React.createElement(
           MachinePatchManager, {
             machine: this.state.machine,
@@ -171,6 +200,27 @@
       }
     },
 
+    parseSysEx: function(bytes) {
+      var selected_machine = this.machines.filter(function(m) {
+        return bytes.slice(1,m.sysex_header.length+1).equals(m.sysex_header);
+      });
+      var machine = selected_machine.length ? selected_machine[0] : false;
+      if (machine) {
+          var parsing_machine = new machine.machine(),
+              patches = parsing_machine.parseSysEx(bytes),
+              new_patches;
+
+          if (patches.length) {
+            if (this.state.machine && this.state.machine.machine_name != machine.machine_name) {
+              new_patches = patches;
+            } else {
+              new_patches = this.state.patches.concat(patches);
+            }
+            this.setState({machine: machine, patches: new_patches});
+          }
+      }
+    },
+
     onMIDISuccess: function(midi) {
       this.setState({
         midi: midi,
@@ -185,16 +235,7 @@
     onMIDIMessage: function(message) {
       // only process sysex midi messages
       if (this.state.listen && message.data[0] == 240) {
-        var selected_machine = this.machines.filter(function(m) {
-          return message.data.slice(1,m.sysex_header.length+1).equals(m.sysex_header);
-        });
-        if (selected_machine.length) {
-          var machine = new selected_machine[0].machine();
-          var patches = machine.parseSysEx(message);
-          if (patches.length) {
-            this.setState({machine: selected_machine[0], patches: patches});
-          }
-        }
+        this.parseSysEx(message.data);
       }
     },
 
@@ -211,6 +252,12 @@
           v.onmidimessage = null;
         }
       });
+    },
+
+    onFileLoad: function(bytes) {
+      if (bytes[0] == 65533) {
+        this.parseSysEx(bytes);
+      }
     },
 
     machines: [
@@ -232,17 +279,13 @@
       var self = this;
       var patches = this.props.patches.map(function(p) {
         return React.createElement(
-          Patch, {patch: p, onClick: self.onPatchClick});
+          Patch, {patch: p});
       });
       return React.createElement(
         'div', {'className': 'gutter-top machine-patches'}
         , React.createElement('h3', {}, this.props.machine.name)
         , React.createElement('div', {className: 'row'}, patches)
       );
-    },
-
-    onPatchClick: function(patch_pk) {
-      this.props.onPatchClick(patch_pk, this.props.machine.machine_name);
     }
   });
 
@@ -252,13 +295,10 @@
     },
 
     render: function() {
-      var cls = 'patch';
-      if (this.state.selected) cls += ' active';
-
       return React.createElement(
         'div', {className: 'col-xs-6 col-sm-4 col-md-3 col-lg-2'}
         , React.createElement(
-          'div', {className: cls, onClick: this.onClick},
+          'div', {className: 'patch', onClick: this.onClick},
           this.props.patch.name)
       );
     },
@@ -316,9 +356,34 @@
     }
   });
 
+  var SysExFileReader = React.createClass({
+    render: function() {
+      return React.createElement(
+        'div', {}
+        , React.createElement(
+          'input', {type: 'file', ref: 'file_input', onChange: this.onFileInputChange})
+      );
+    },
+
+    onFileInputChange: function() {
+      var self = this, el = ReactDOM.findDOMNode(this.refs.file_input),
+          reader = new FileReader();
+
+      reader.onload = function(e) {
+        // convert to byte array
+        var bytes = [];
+        for (var i = 0; i < e.target.result.length; ++i) {
+          bytes.push(e.target.result.charCodeAt(i));
+        }
+        self.props.onFileLoad(bytes);
+      };
+      reader.readAsText(el.files[0]);
+    }
+  });
+
   $(document).ready(function() {
     ReactDOM.render(
-      React.createElement(UploadSysEx),
-      $(".upload-sysex")[0]);
+      React.createElement(ImportSysEx),
+      $(".import-sysex")[0]);
   });
 })(jQuery);

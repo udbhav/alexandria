@@ -1,6 +1,6 @@
-$bg: cornsilk;
-$bg_2: white;
-$primary: #333;
+$bg: white;
+$bg_2: cornsilk;
+$primary: #A26ECE;
 $border: 1px solid $primary;
 $gutter: 30px;
 
@@ -12,18 +12,16 @@ body {
   margin-top: $gutter;
 }
 
-.patch {
-  background: $bg_2;
-  padding: $gutter/2;
-  border: $border;
-  margin-bottom: $gutter/2;
-
-  &.active {
-    background: $primary;
-    color: $bg_2;
-  }
+.gutter-bottom {
+  margin-bottom: $gutter;
 }
 
-.machine-patches {
-  h3 { margin-bottom: $gutter; }
+a, a:hover, a:active { color: $primary; }
+
+header {
+  background: $bg_2;
+  border-bottom: $border;
+  margin-bottom: $gutter;
+  padding: $gutter/2;
+  h1 { margin: 0; }
 }

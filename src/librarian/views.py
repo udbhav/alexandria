@@ -5,6 +5,6 @@ from django.views.generic.edit import FormView
 class AppView(TemplateView):
     template_name = "librarian/app.html"
 
-class UploadSysExView(TemplateView):
-    template_name = "librarian/upload_sysex.html"
+class ImportSysExView(TemplateView):
+    template_name = "librarian/import_sysex.html"
     pass
