@@ -18,4 +18,19 @@ header {
   header h1 {
     margin: 0; }
 
+.machine-patches .patches {
+  column-gap: 30px;
+  -webkit-column-gap: 30px;
+  -moz-column-gap: 30px;
+  column-count: 2;
+  -webkit-column-count: 2;
+  -moz-column-count: 2; }
+
+/* md and up */
+@media (min-width: 992px) {
+  .machine-patches .patches {
+    column-count: 4;
+    -webkit-column-count: 4;
+    -moz-column-count: 4; } }
+
 /*# sourceMappingURL=styles.css.map */

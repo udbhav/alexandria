@@ -41,10 +41,6 @@
   ElektronMD.prototype.constructor = ElektronMD;
 
   ElektronMD.prototype.parseSysEx = function(message) {
-    if (message.data[6] == 82) this.parseKitSysEx(message);
-  };
-  ElektronMD.prototype.parseKitSysEx = function(message) {
-    console.log(message.data.slice(16,32));
   };
 
   function YamahaDX7() {
@@ -132,13 +128,10 @@
 
     return data;
   };
-  YamahaDX7.prototype.parseKitSysEx = function(message) {
-    // console.log(message.data.slice(16,32));
-  };
 
   var ImportSysEx = React.createClass({
     getInitialState: function() {
-      return {inputs: [], midi: false, listen: false, patches: []};
+      return {inputs: [], midi: false, listen: false, patches: [], lastPatchClicked: false};
     },
 
     render: function() {
@@ -186,11 +179,17 @@
           MachinePatchManager, {
             machine: this.state.machine,
             patches: this.state.patches,
-          }))
+            onToolbarClick: this.onMachineToolbarClick,
+            onPatchClick: this.onPatchClick
+          })
+          )
       );
     },
 
     componentDidMount: function() {
+      // id
+      this.patch_id = 0;
+
       // request MIDI access
       if (navigator.requestMIDIAccess) {
         navigator.requestMIDIAccess({sysex: true})
@@ -201,23 +200,25 @@
     },
 
     parseSysEx: function(bytes) {
-      var selected_machine = this.machines.filter(function(m) {
+      var self = this, selected_machine = this.machines.filter(function(m) {
         return bytes.slice(1,m.sysex_header.length+1).equals(m.sysex_header);
       });
       var machine = selected_machine.length ? selected_machine[0] : false;
       if (machine) {
-          var parsing_machine = new machine.machine(),
-              patches = parsing_machine.parseSysEx(bytes),
-              new_patches;
+        var parsing_machine = new machine.machine(),
+            patches = parsing_machine.parseSysEx(bytes);
 
-          if (patches.length) {
-            if (this.state.machine && this.state.machine.machine_name != machine.machine_name) {
-              new_patches = patches;
-            } else {
-              new_patches = this.state.patches.concat(patches);
-            }
-            this.setState({machine: machine, patches: new_patches});
-          }
+        if (patches.length) {
+          patches.forEach(function(p) { p.pk = self.getPatchID(); p.active = false; }); // get ids
+
+          if (this.state.machine && this.state.machine.machine_name != machine.machine_name) {
+            this.setState({machine: machine, patches: patches});
+          } else {
+            this.setState(function(old_state) {
+              return {machine: machine, patches: old_state.patches.concat(patches)};
+            });
+          };
+        }
       }
     },
 
@@ -260,6 +261,45 @@
       }
     },
 
+    onMachineToolbarClick: function(e) {
+      var action = $(e.target).attr("data-action");
+
+      this.setState(function(old_state) {
+        var patches = old_state.patches;
+        if (action == "select_all") {
+          patches = old_state.patches.map(function(p) { return $.extend(p, {active: true}) });
+        } else if (action == "select_none") {
+          patches = old_state.patches.map(function(p) { return $.extend(p, {active: false}) });
+        } else if (action == "remove_selected") {
+          patches = old_state.patches.filter(function(p) { return !p.active; });
+        }
+        return {patches: patches};
+      });
+    },
+
+    getPatchID: function() {
+      var patch_id = this.patch_id;
+      this.patch_id += 1;
+      return patch_id;
+    },
+
+    onPatchClick: function(e, patch_pk) {
+      var self = this, active_selection = false;
+      var patches = this.state.patches.map(function(p) {
+        // shift click
+        if (e.shiftKey) {
+          if (p.pk == patch_pk || p.pk == self.state.lastPatchClicked) active_selection = !active_selection;
+        }
+
+        if (patch_pk == p.pk || (active_selection && p.pk != self.state.lastPatchClicked)) {
+          return $.extend(p, {active: !p.active});
+        } else {
+          return p;
+        }
+      });
+      this.setState({patches: patches, lastPatchClicked: patch_pk});
+    },
+
     machines: [
       {name: 'Elektron Machinedrum',
        machine_name: 'elektron_md',
@@ -279,32 +319,58 @@
       var self = this;
       var patches = this.props.patches.map(function(p) {
         return React.createElement(
-          Patch, {patch: p});
+          Patch, {key: p.pk, patch: p, onPatchClick: self.props.onPatchClick});
       });
       return React.createElement(
         'div', {'className': 'gutter-top machine-patches'}
         , React.createElement('h3', {}, this.props.machine.name)
-        , React.createElement('div', {className: 'row'}, patches)
+        , React.createElement(
+          'div', {className: 'btn-group'}
+          , React.createElement(
+            'button', {className: 'btn btn-default',
+                       "data-action": "select_all",
+                       onClick: this.props.onToolbarClick}, "Select All")
+          , React.createElement(
+            'button', {className: 'btn btn-default',
+                       "data-action": "select_none",
+                       onClick: this.props.onToolbarClick}, "Select None")
+          , React.createElement(
+            'button', {className: 'btn btn-danger',
+                       "data-action": "remove_selected",
+                       onClick: this.props.onToolbarClick}, "Remove Selected")
+        )
+        , React.createElement('div', {className: "gutter-top patches"}, patches)
       );
     }
   });
 
   var Patch = React.createClass({
-    getInitialState: function() {
-      return {selected: false};
-    },
-
     render: function() {
       return React.createElement(
-        'div', {className: 'col-xs-6 col-sm-4 col-md-3 col-lg-2'}
+        'div', {className: 'patch checkbox'}
         , React.createElement(
-          'div', {className: 'patch', onClick: this.onClick},
-          this.props.patch.name)
+          'label', {onClick: this.onLabelClick}
+          , React.createElement(
+            'input', {type: "checkbox", checked: this.props.patch.active, onClick: this.onClick})
+          , this.props.patch.name)
       );
     },
 
-    onClick: function() {
-      this.props.onClick(this.props.patch.pk);
+    onClick: function(e) {
+      e.stopPropagation();
+      this.props.onPatchClick(e, this.props.patch.pk);
+    },
+
+    onLabelClick: function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      // clear selection
+      if ( document.selection ) {
+        document.selection.empty();
+      } else if ( window.getSelection ) {
+        window.getSelection().removeAllRanges();
+      }
+      this.onClick(e);
     }
   });
 
@@ -337,7 +403,7 @@
 
     render: function() {
       var class_name = 'btn btn-default',
-      text = 'Listen for SysEx';
+          text = 'Listen for SysEx';
 
       if (this.state.active) {
         class_name = 'btn btn-primary';
