@@ -4,7 +4,6 @@ from django.contrib.postgres.fields import JSONField
 
 class BaseModel(models.Model):
     name = models.CharField(max_length=255)
-    user = models.ForeignKey(User, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -29,10 +28,13 @@ class WithMachine(models.Model):
         abstract = True
 
 class Patch(BaseModel, WithMachine):
+    user = models.ForeignKey(User, related_name="patches", blank=True, null=True)
+
     class Meta:
         verbose_name_plural = "patches"
 
 class PatchBank(BaseModel, WithMachine):
+    user = models.ForeignKey(User, related_name="patch_banks", blank=True, null=True)
     patches = models.ManyToManyField(Patch, through='PatchPosition')
 
 class PatchPosition(models.Model):
