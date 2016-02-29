@@ -22,7 +22,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             items = qs.filter(public=True)
 
         s = serializer_cls(instance=items, many=True, context=self.context)
-        return [{'url': x['url'], 'name': x['name']} for x in s.data]
+        return s.data
 
     def get_patches(self, user):
         return self.get_permissioned_items(user, 'patches', PatchSerializer)

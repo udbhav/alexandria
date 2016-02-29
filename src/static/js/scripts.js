@@ -288,8 +288,18 @@
         } else if (action == "remove_selected") {
           patches = old_state.patches.filter(function(p) { return !p.active; });
         } else if (action == "save_selected") {
-          var patches_to_save = old_state.patches.filter(function(p) { return p.active; });
-          $.post("/api/v1/patches", {"name": "TESTING!"})
+          old_state.patches.map(function(p) {
+            if (p.active) {
+              $.ajax({
+                type: "post",
+                dataType: "json",
+                contentType: "application/json",
+                url: "/api/v1/patches/",
+                data: JSON.stringify({"name": p.name, "data": p})
+              });
+            };
+          });
+          patches = old_state.patches.filter(function(p) { return !p.active })
         }
 
         return {patches: patches};
@@ -476,12 +486,22 @@
     },
 
     render: function() {
-      return false;
+      var patches = this.state.patches.map(function(p) {
+        return React.createElement(
+          Patch, {key: p.id, patch: p.data});
+      });
+      return React.createElement(
+        'div', {}, patches);
     },
 
     componentDidMount: function() {
+      var self = this;
       $.getJSON("/api/v1/users/" + this.props.user_id, function(data) {
-        console.log(data);
+        var patches = data.patches.map(function(p) {
+          p.active = false;
+          return true;
+        });
+        self.setState({patches: data.patches});
       });
     }
   });

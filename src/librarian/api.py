@@ -17,7 +17,7 @@ class PatchSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Patch
         fields = (
-            'url', 'name', 'user', 'public',
+            'id', 'url', 'name', 'user', 'public',
             'data', 'created_at', 'updated_at')
         read_only_fields = ('user',)
 
