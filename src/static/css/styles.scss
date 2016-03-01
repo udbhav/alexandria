@@ -27,6 +27,8 @@ header {
 }
 
 .machine-patches {
+  margin-top: $gutter;
+  
   .patches {
     column-gap: $gutter;
     -webkit-column-gap: $gutter;

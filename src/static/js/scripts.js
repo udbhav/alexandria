@@ -191,7 +191,7 @@
           )
         )
         , (this.state.patches.length != 0 && React.createElement(
-          MachinePatchManager, {
+          MachinePatchUploader, {
             machine: this.state.machine,
             patches: this.state.patches,
             onToolbarClick: this.onMachineToolbarClick,
@@ -224,7 +224,7 @@
             patches = parsing_machine.parseSysEx(bytes);
 
         if (patches.length) {
-          patches.forEach(function(p) { p.pk = self.getPatchID(); p.active = false; }); // get ids
+          patches.forEach(function(p) { p.id = self.getPatchID(); p.active = false; }); // get ids
 
           if (this.state.machine && this.state.machine.machine_name != machine.machine_name) {
             this.setState({machine: machine, patches: patches});
@@ -276,9 +276,7 @@
       }
     },
 
-    onMachineToolbarClick: function(e) {
-      var action = $(e.target).attr("data-action");
-
+    onMachineToolbarClick: function(action, machine) {
       this.setState(function(old_state) {
         var patches = old_state.patches;
         if (action == "select_all") {
@@ -295,7 +293,7 @@
                 dataType: "json",
                 contentType: "application/json",
                 url: "/api/v1/patches/",
-                data: JSON.stringify({"name": p.name, "data": p})
+                data: JSON.stringify({"name": p.name, "data": p, "machine": machine.machine_name})
               });
             };
           });
@@ -312,21 +310,21 @@
       return patch_id;
     },
 
-    onPatchClick: function(e, patch_pk) {
+    onPatchClick: function(e, patch_id) {
       var self = this, active_selection = false;
       var patches = this.state.patches.map(function(p) {
         // shift click
         if (e.shiftKey) {
-          if (p.pk == patch_pk || p.pk == self.state.lastPatchClicked) active_selection = !active_selection;
+          if (p.id == patch_id || p.id == self.state.lastPatchClicked) active_selection = !active_selection;
         }
 
-        if (patch_pk == p.pk || (active_selection && p.pk != self.state.lastPatchClicked)) {
+        if (patch_id == p.id || (active_selection && p.id != self.state.lastPatchClicked)) {
           return $.extend(p, {active: !p.active});
         } else {
           return p;
         }
       });
-      this.setState({patches: patches, lastPatchClicked: patch_pk});
+      this.setState({patches: patches, lastPatchClicked: patch_id});
     },
 
     machines: [
@@ -343,35 +341,48 @@
     ]
   });
 
-  var MachinePatchManager = React.createClass({
+  var PatchToolbar = React.createClass({
+    render: function() {
+      return React.createElement(
+        'div', {className: 'btn-group'}
+        , React.createElement(
+          'button', {className: 'btn btn-default',
+                     "data-action": "select_all",
+                     onClick: this.onToolbarClick}, "Select All")
+        , React.createElement(
+          'button', {className: 'btn btn-default',
+                     "data-action": "select_none",
+                     onClick: this.onToolbarClick}, "Select None")
+        , React.createElement(
+          'button', {className: 'btn btn-danger',
+                     "data-action": "remove_selected",
+                     onClick: this.onToolbarClick}, "Remove Selected")
+        , React.createElement(
+          'button', {className: 'btn btn-primary',
+                     "data-action": "save_selected",
+                     onClick: this.onToolbarClick}, "Save Selected")
+      );
+    },
+
+    onToolbarClick: function(e) {
+      e.preventDefault();
+      var action = $(e.target).attr("data-action");
+      this.props.onToolbarClick(action, this.props.machine);
+    }
+  });
+
+  var MachinePatchUploader = React.createClass({
     render: function() {
       var self = this;
       var patches = this.props.patches.map(function(p) {
         return React.createElement(
-          Patch, {key: p.pk, patch: p, onPatchClick: self.props.onPatchClick});
+          Patch, {key: p.id, patch: p, onPatchClick: self.props.onPatchClick});
       });
       return React.createElement(
-        'div', {'className': 'gutter-top machine-patches'}
+        'div', {'className': 'machine-patches'}
         , React.createElement('h3', {}, this.props.machine.name)
-        , React.createElement(
-          'div', {className: 'btn-group'}
-          , React.createElement(
-            'button', {className: 'btn btn-default',
-                       "data-action": "select_all",
-                       onClick: this.props.onToolbarClick}, "Select All")
-          , React.createElement(
-            'button', {className: 'btn btn-default',
-                       "data-action": "select_none",
-                       onClick: this.props.onToolbarClick}, "Select None")
-          , React.createElement(
-            'button', {className: 'btn btn-danger',
-                       "data-action": "remove_selected",
-                       onClick: this.props.onToolbarClick}, "Remove Selected")
-          , React.createElement(
-            'button', {className: 'btn btn-primary',
-                       "data-action": "save_selected",
-                       onClick: this.props.onToolbarClick}, "Save Selected")
-        )
+        , React.createElement(PatchToolbar, {
+          onToolbarClick: this.props.onToolbarClick, machine: this.props.machine})
         , React.createElement('div', {className: "gutter-top patches"}, patches)
       );
     }
@@ -391,7 +402,7 @@
 
     onClick: function(e) {
       e.stopPropagation();
-      this.props.onPatchClick(e, this.props.patch.pk);
+      this.props.onPatchClick(e, this.props.patch.id);
     },
 
     onLabelClick: function(e) {
@@ -480,28 +491,46 @@
     }
   });
 
+  var MachinePatchManager = React.createClass({
+    render: function() {
+      var self = this;
+      var patches = this.props.machine.patches.map(function(p) {
+        return React.createElement(
+          Patch, {key: p.id, patch: p, onPatchClick: self.props.onPatchClick});
+      });
+
+      return React.createElement(
+        'div', {'className': 'machine-patches'}
+        , React.createElement('h3', {}, this.props.machine.name)
+        , React.createElement(PatchToolbar, {
+          onToolbarClick: this.props.onToolbarClick, machine: this.props.machine})
+        , React.createElement('div', {className: "gutter-top patches"}, patches)
+      );
+    }
+  });
+
   var UserPatches = React.createClass({
     getInitialState: function() {
-      return {patches: []};
+      return {machines: []};
     },
 
     render: function() {
-      var patches = this.state.patches.map(function(p) {
+      var machines = this.state.machines.map(function(m) {
         return React.createElement(
-          Patch, {key: p.id, patch: p.data});
+          MachinePatchManager, {machine: m, key: m.machine});
       });
       return React.createElement(
-        'div', {}, patches);
+        'div', {}, machines);
     },
 
     componentDidMount: function() {
       var self = this;
       $.getJSON("/api/v1/users/" + this.props.user_id, function(data) {
-        var patches = data.patches.map(function(p) {
-          p.active = false;
-          return true;
-        });
-        self.setState({patches: data.patches});
+        var machines = [];
+        for (var machine in data.patches) {
+          machines.push({machine: machine, name: data.patches[machine][0].machine_name, patches: data.patches[machine]});
+        }
+        self.setState({machines: machines});
       });
     }
   });

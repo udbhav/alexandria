@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.conf.urls import include, url
 from django.contrib import admin
 from django.contrib.auth.decorators import login_required
@@ -17,12 +19,15 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
     def get_permissioned_items(self, user, attr, serializer_cls):
         qs = getattr(user, attr)
         if self.context['request'].user == user:
-            items = qs.all()
+            items = qs.order_by('machine')
         else:
-            items = qs.filter(public=True)
+            items = qs.filter(public=True).order_by('machine')
 
         s = serializer_cls(instance=items, many=True, context=self.context)
-        return s.data
+        response = defaultdict(list)
+        for x in s.data:
+            response[x['machine']].append(x)
+        return response
 
     def get_patches(self, user):
         return self.get_permissioned_items(user, 'patches', PatchSerializer)

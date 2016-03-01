@@ -13,19 +13,25 @@ class UserPermission(permissions.DjangoModelPermissionsOrAnonReadOnly):
         else:
             return request.user.is_authenticated() and obj.user == request.user
 
-class PatchSerializer(serializers.HyperlinkedModelSerializer):
+class BaseSerializer(serializers.HyperlinkedModelSerializer):
+    machine_name = serializers.SerializerMethodField()
+
+    def get_machine_name(self, obj):
+        return obj.get_machine_display()
+
+class PatchSerializer(BaseSerializer):
     class Meta:
         model = Patch
         fields = (
-            'id', 'url', 'name', 'user', 'public',
+            'id', 'url', 'name', 'machine', 'machine_name', 'user', 'public',
             'data', 'created_at', 'updated_at')
         read_only_fields = ('user',)
 
-class PatchBankSerializer(serializers.HyperlinkedModelSerializer):
+class PatchBankSerializer(BaseSerializer):
     class Meta:
         model = PatchBank
         fields = (
-            'url', 'name', 'user', 'public',
+            'id', 'url', 'name', 'machine', 'machine_name', 'user', 'public',
             'data', 'created_at', 'updated_at')
         read_only_fields = ('user',)
 
