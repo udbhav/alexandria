@@ -144,6 +144,60 @@
     return data;
   };
 
+  var MachinePatchMixin = {
+    getInitialState: function() {
+      return {active_patches: [], lastPatchIdClicked: false};
+    },
+
+    patchIsActive: function(patch_id) {
+      return this.state.active_patches.indexOf(patch_id) != -1;
+    },
+
+    onPatchClick: function(e, patch_id) {
+      var self = this,
+          is_in_region = false;
+
+      var active_patches = this.props.machine.patches.map(function(p) {
+        var flip = false;
+
+        if (e.shiftKey) {
+          if (p.id == patch_id || p.id == self.state.lastPatchIdClicked) {
+            is_in_region = !is_in_region;
+          }
+        }
+
+        if (p.id == patch_id) {
+          flip = true;
+        } else if (is_in_region) {
+          if (p.id != self.state.lastPatchIdClicked) flip = true;
+        }
+
+        if (flip) {
+          if (!self.patchIsActive(p.id)) return p.id;
+        } else {
+          if (self.patchIsActive(p.id)) return p.id;
+        };
+      }).filter(function(n){ return n != undefined });
+      this.setState({active_patches: active_patches, lastPatchIdClicked: patch_id});
+    },
+
+    onToolbarClick: function(action) {
+      var active_patches = this.state.active_patches.slice(0);
+      if (action == "select_all") {
+        active_patches = this.props.machine.patches.map(function(p) {
+          return p.id;
+        });
+      } else if (action == "select_none") {
+        active_patches = [];
+      } else if (action == "save_selected") {
+        console.log("save");
+      } else if (action == "remove_selected") {
+        this.removeSelected();
+      }
+      this.setState({active_patches: active_patches});
+    }
+  };
+
   var ImportSysEx = React.createClass({
     getInitialState: function() {
       return {inputs: [], midi: false, listen: false, patches: [], lastPatchClicked: false};
@@ -367,7 +421,7 @@
     onToolbarClick: function(e) {
       e.preventDefault();
       var action = $(e.target).attr("data-action");
-      this.props.onToolbarClick(action, this.props.machine);
+      this.props.onToolbarClick(action);
     }
   });
 
@@ -395,7 +449,7 @@
         , React.createElement(
           'label', {onClick: this.onLabelClick}
           , React.createElement(
-            'input', {type: "checkbox", checked: this.props.patch.active, onClick: this.onClick})
+            'input', {type: "checkbox", checked: this.props.active, onClick: this.onClick})
           , this.props.patch.name)
       );
     },
@@ -492,20 +546,29 @@
   });
 
   var MachinePatchManager = React.createClass({
+    mixins: [MachinePatchMixin],
+
     render: function() {
       var self = this;
       var patches = this.props.machine.patches.map(function(p) {
         return React.createElement(
-          Patch, {key: p.id, patch: p, onPatchClick: self.props.onPatchClick});
+          Patch, {key: p.id, patch: p, active: self.patchIsActive(p.id),
+                  onPatchClick: self.onPatchClick
+                 });
       });
 
       return React.createElement(
         'div', {'className': 'machine-patches'}
         , React.createElement('h3', {}, this.props.machine.name)
         , React.createElement(PatchToolbar, {
-          onToolbarClick: this.props.onToolbarClick, machine: this.props.machine})
+          onToolbarClick: this.onToolbarClick, machine: this.props.machine})
         , React.createElement('div', {className: "gutter-top patches"}, patches)
       );
+    },
+
+    removeSelected: function() {
+      this.props.removePatches(this.state.active_patches);
+      this.setState({active_patches: []});
     }
   });
 
@@ -515,9 +578,10 @@
     },
 
     render: function() {
+      var self = this;
       var machines = this.state.machines.map(function(m) {
         return React.createElement(
-          MachinePatchManager, {machine: m, key: m.machine});
+          MachinePatchManager, {machine: m, key: m.machine, removePatches: self.removePatches});
       });
       return React.createElement(
         'div', {}, machines);
@@ -532,6 +596,11 @@
         }
         self.setState({machines: machines});
       });
+    },
+
+    removePatches: function(patch_ids) {
+      
+      console.log("REMOVE!");
     }
   });
 

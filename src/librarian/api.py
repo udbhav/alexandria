@@ -20,6 +20,12 @@ class BaseSerializer(serializers.HyperlinkedModelSerializer):
         return obj.get_machine_display()
 
 class PatchSerializer(BaseSerializer):
+    def __init__(self, *args, **kwargs):
+        super(PatchSerializer, self).__init__(*args, **kwargs)
+        show_data = kwargs['context']['request'].GET.get("show_data", False)
+        if not show_data:
+            self.fields.pop("data")
+
     class Meta:
         model = Patch
         fields = (
